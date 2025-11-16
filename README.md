@@ -1,50 +1,114 @@
-# Welcome to your Expo app 👋
+# Mahasiswa App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Tugas kuliah PBP - Implementasi Firebase Authentication, MMKV, dan Firestore untuk aplikasi data mahasiswa.
 
-## Get started
+## Deskripsi Tugas
 
-1. Install dependencies
+1. **Firebase Authentication** - Simpan informasi login menggunakan MMKV
+2. **Firebase Firestore** - Buat database untuk data mahasiswa
+3. **Fetch & Display** - Ambil dan tampilkan data mahasiswa di React Native
+
+## Tech Stack
+
+- React Native (Expo)
+- Firebase Authentication & Firestore
+- MMKV (persistent storage)
+- TypeScript
+
+## Setup
+
+1. Install dependencies:
 
    ```bash
    npm install
    ```
 
-2. Start the app
+2. Setup Firebase config:
 
+   ```bash
+   cp lib/firebase.example.ts lib/firebase.ts
+   ```
+
+   Edit `lib/firebase.ts` dengan config Firebase kamu.
+
+3. Run app:
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+## Implementasi
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### 1. Firebase Authentication (`app/login.tsx`)
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+```typescript
+// Login dengan email & password
+const userCredential = await signInWithEmailAndPassword(auth, email, password);
 
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+// Simpan UID ke MMKV storage
+storageHelper.setString("uid", userCredential.user.uid);
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2. MMKV untuk Persistent Session (`lib/storage.ts`)
 
-## Learn more
+```typescript
+// MMKV storage untuk simpan informasi login
+import { createMMKV } from "react-native-mmkv";
 
-To learn more about developing your project with Expo, look at the following resources:
+const storage = createMMKV();
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+export const storageHelper = {
+  setString: (key: string, value: string) => {
+    storage.set(key, value);
+  },
+  getString: (key: string) => {
+    return storage.getString(key);
+  },
+  remove: (key: string) => {
+    storage.remove(key);
+  },
+};
+```
 
-## Join the community
+**Note**: MMKV v4 menggunakan NitroModules. Bisa test di web (auto fallback ke localStorage), atau build native:
 
-Join our community of developers creating universal apps.
+```bash
+# Test di web
+npx expo start --web
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+# Build development APK
+eas build --profile development --platform android
+```
+
+### 3. Firebase Firestore Database
+
+**Collection**: `mahasiswa`  
+**Fields**: `Nama`, `NIM`, `Jurusan`, `Angkatan`, `userId`
+
+Setiap user punya data mahasiswa sendiri berdasarkan field `userId`.
+
+### 4. Fetch & Display Data (`app/mahasiswa.tsx`)
+
+```typescript
+// Fetch hanya data mahasiswa milik user yang login
+const uid = storageHelper.getString("uid"); // Synchronous
+const q = query(collection(db, "mahasiswa"), where("userId", "==", uid));
+const snap = await getDocs(q);
+
+// Tampilkan data di ScrollView
+snap.forEach((doc) => {
+  const data = doc.data(); // { Nama, NIM, Jurusan, Angkatan, ... }
+});
+```
+
+## Struktur File
+
+```
+app/
+├── index.tsx        # Cek auth, redirect ke login/home
+├── login.tsx        # Form login + Firebase Auth
+├── home.tsx         # Home screen dengan tombol logout
+└── mahasiswa.tsx    # Fetch & display data dari Firestore
+lib/
+├── firebase.ts      # Init Firebase (Auth + Firestore)
+└── storage.ts       # MMKV storage helper
+```
