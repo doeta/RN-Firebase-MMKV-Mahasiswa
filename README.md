@@ -1,114 +1,105 @@
 # Mahasiswa App
 
-Tugas kuliah PBP - Implementasi Firebase Authentication, MMKV, dan Firestore untuk aplikasi data mahasiswa.
+Tugas PBP: Firebase Authentication + MMKV + Firestore untuk data mahasiswa.
 
-## Deskripsi Tugas
+## Ringkasan Fitur
 
-1. **Firebase Authentication** - Simpan informasi login menggunakan MMKV
-2. **Firebase Firestore** - Buat database untuk data mahasiswa
-3. **Fetch & Display** - Ambil dan tampilkan data mahasiswa di React Native
+- Login dengan Firebase Auth, session disimpan di MMKV (sync, cepat)
+- Data mahasiswa per-user di Firestore (filter by `userId`)
+- UI modern (gradient header, card list)
 
 ## Tech Stack
 
-- React Native (Expo)
-- Firebase Authentication & Firestore
-- MMKV (persistent storage)
-- TypeScript
+- Expo (React Native, TypeScript)
+- Firebase Auth & Firestore
+- MMKV v4 (react-native-mmkv)
 
 ## Setup
 
-1. Install dependencies:
+1. Install dependencies
 
-   ```bash
-   npm install
-   ```
-
-2. Setup Firebase config:
-
-   ```bash
-   cp lib/firebase.example.ts lib/firebase.ts
-   ```
-
-   Edit `lib/firebase.ts` dengan config Firebase kamu.
-
-3. Run app:
-   ```bash
-   npx expo start
-   ```
-
-## Implementasi
-
-### 1. Firebase Authentication (`app/login.tsx`)
-
-```typescript
-// Login dengan email & password
-const userCredential = await signInWithEmailAndPassword(auth, email, password);
-
-// Simpan UID ke MMKV storage
-storageHelper.setString("uid", userCredential.user.uid);
+```bash
+npm install
 ```
 
-### 2. MMKV untuk Persistent Session (`lib/storage.ts`)
+2. Buat file `FirebaseConfig.js` di root proyek (bukan di `lib/`):
 
-```typescript
-// MMKV storage untuk simpan informasi login
-import { createMMKV } from "react-native-mmkv";
-
-const storage = createMMKV();
-
-export const storageHelper = {
-  setString: (key: string, value: string) => {
-    storage.set(key, value);
-  },
-  getString: (key: string) => {
-    return storage.getString(key);
-  },
-  remove: (key: string) => {
-    storage.remove(key);
-  },
+```js
+// FirebaseConfig.js
+export const firebaseConfig = {
+  apiKey: "<API_KEY>",
+  authDomain: "<PROJECT>.firebaseapp.com",
+  projectId: "<PROJECT>",
+  storageBucket: "<PROJECT>.firebasestorage.app",
+  messagingSenderId: "<SENDER_ID>",
+  appId: "<APP_ID>",
 };
 ```
 
-**Note**: MMKV v4 menggunakan NitroModules. Bisa test di web (auto fallback ke localStorage), atau build native:
+3. Jalankan app
 
 ```bash
-# Test di web
+npx expo start
+```
+
+Opsional:
+
+```bash
+# Web dev
 npx expo start --web
 
-# Build development APK
+# APK dev (butuh EAS)
 eas build --profile development --platform android
 ```
 
-### 3. Firebase Firestore Database
+## Implementasi (Modular Hooks)
 
-**Collection**: `mahasiswa`  
-**Fields**: `Nama`, `NIM`, `Jurusan`, `Angkatan`, `userId`
+### Auth + MMKV (`hooks/useAuth.ts`)
 
-Setiap user punya data mahasiswa sendiri berdasarkan field `userId`.
+```ts
+import { createMMKV } from "react-native-mmkv";
+const storage = createMMKV();
 
-### 4. Fetch & Display Data (`app/mahasiswa.tsx`)
+// Simpan UID saat login
+storage.set("uid", uid);
 
-```typescript
-// Fetch hanya data mahasiswa milik user yang login
-const uid = storageHelper.getString("uid"); // Synchronous
-const q = query(collection(db, "mahasiswa"), where("userId", "==", uid));
-const snap = await getDocs(q);
+// Ambil UID saat app dibuka
+storage.getString("uid");
 
-// Tampilkan data di ScrollView
-snap.forEach((doc) => {
-  const data = doc.data(); // { Nama, NIM, Jurusan, Angkatan, ... }
-});
+// Logout (MMKV v4 → gunakan remove)
+storage.remove("uid");
 ```
 
-## Struktur File
+### Firestore (`hooks/useFirestore.ts`)
+
+```ts
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  getFirestore,
+} from "firebase/firestore";
+
+// Contoh query per-user
+const q = query(collection(db, "mahasiswa"), where("userId", "==", uid));
+const snap = await getDocs(q);
+```
+
+### Tampilan Data (`app/mahasiswa.tsx`)
+
+List card dengan avatar inisial, badge NIM, dan detail Jurusan/Angkatan.
+
+## Struktur Proyek (aktual)
 
 ```
 app/
-├── index.tsx        # Cek auth, redirect ke login/home
-├── login.tsx        # Form login + Firebase Auth
-├── home.tsx         # Home screen dengan tombol logout
-└── mahasiswa.tsx    # Fetch & display data dari Firestore
-lib/
-├── firebase.ts      # Init Firebase (Auth + Firestore)
-└── storage.ts       # MMKV storage helper
+  index.tsx       # Cek UID → redirect login/home
+  login.tsx       # Form login + UI
+  home.tsx        # Welcome + tombol ke Mahasiswa + Logout
+  mahasiswa.tsx   # List data per-user
+hooks/
+  useAuth.ts      # Auth + MMKV
+  useFirestore.ts # Query Firestore
+FirebaseConfig.js
 ```

@@ -46,6 +46,10 @@ app-example
 # Firebase config (PENTING - jangan upload ke GitHub!)
 lib/firebase.ts
 app/firebase.ts
+FirebaseConfig.js
+FirebaseConfig.ts
+GoogleService-Info.plist
+google-services.json
 
 # VS Code
 .vscode/

@@ -1,74 +1,152 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { signInWithEmailAndPassword } from "firebase/auth";
 import { useState } from "react";
-import { Button, Text, TextInput, View } from "react-native";
-import { auth } from "../lib/firebase";
-import { storageHelper } from "../lib/storage";
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useAuth } from "../hooks/useAuth";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const login = async () => {
+  const handleLogin = async () => {
     if (!email || !password) {
-      alert("Mohon isi email dan password");
+      Alert.alert("Error", "Mohon isi email dan password");
       return;
     }
 
     setLoading(true);
-    try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      console.log("Login success:", userCredential.user.uid);
-      storageHelper.setString("uid", userCredential.user.uid);
+    const result = await login(email, password);
+    setLoading(false);
+
+    if (result.success) {
       router.replace("/home");
-    } catch (e: any) {
-      console.error("Login error:", e);
-      let errorMessage = "Login gagal";
-
-      if (e.code === "auth/user-not-found") {
-        errorMessage = "User tidak ditemukan";
-      } else if (e.code === "auth/wrong-password") {
-        errorMessage = "Password salah";
-      } else if (e.code === "auth/invalid-email") {
-        errorMessage = "Email tidak valid";
-      } else if (e.code === "auth/invalid-credential") {
-        errorMessage = "Email atau password salah";
-      }
-
-      alert(errorMessage + ": " + e.message);
-    } finally {
-      setLoading(false);
+    } else {
+      Alert.alert("Login Gagal", result.message);
     }
   };
 
   return (
-    <View style={{ padding: 20 }}>
-      <Text style={{ fontSize: 24, fontWeight: "bold" }}>Login</Text>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+    >
+      <LinearGradient colors={["#667eea", "#764ba2"]} style={styles.gradient}>
+        <View style={styles.card}>
+          <Text style={styles.title}>Mahasiswa APP</Text>
+          <Text style={styles.subtitle}>Silakan login untuk melanjutkan</Text>
 
-      <TextInput
-        placeholder="Email"
-        style={{ borderWidth: 1, marginTop: 20, padding: 10 }}
-        onChangeText={setEmail}
-      />
+          <View style={styles.inputContainer}>
+            <TextInput
+              placeholder="Email"
+              placeholderTextColor="#999"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={styles.input}
+            />
+          </View>
 
-      <TextInput
-        placeholder="Password"
-        secureTextEntry
-        style={{ borderWidth: 1, marginTop: 10, padding: 10 }}
-        onChangeText={setPassword}
-      />
+          <View style={styles.inputContainer}>
+            <TextInput
+              placeholder="Password"
+              placeholderTextColor="#999"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              style={styles.input}
+            />
+          </View>
 
-      <Button
-        title={loading ? "Loading..." : "Login"}
-        onPress={login}
-        disabled={loading}
-      />
-    </View>
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Login</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+    </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  gradient: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 30,
+    width: "100%",
+    maxWidth: 400,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#333",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 30,
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  input: {
+    backgroundColor: "#f5f5f5",
+    borderRadius: 12,
+    padding: 15,
+    fontSize: 16,
+    color: "#333",
+  },
+  button: {
+    backgroundColor: "#667eea",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+});

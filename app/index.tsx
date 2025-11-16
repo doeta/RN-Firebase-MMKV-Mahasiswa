@@ -1,48 +1,34 @@
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
-import { storageHelper } from "../lib/storage";
+import { useAuth } from "../hooks/useAuth";
 
 export default function Index() {
   const router = useRouter();
-  const [isReady, setIsReady] = useState(false);
+  const { getCurrentUser } = useAuth();
 
   useEffect(() => {
-    // Check authentication status
-    try {
-      console.log("[INDEX] Checking auth status...");
-      const uid = storageHelper.getString("uid");
-      console.log("[INDEX] UID from storage:", uid);
+    const uid = getCurrentUser();
 
-      // Small delay to ensure router is ready
-      setTimeout(() => {
-        if (uid) {
-          console.log("[INDEX] Redirecting to /home");
-          router.replace("/home");
-        } else {
-          console.log("[INDEX] Redirecting to /login");
-          router.replace("/login");
-        }
-        setIsReady(true);
-      }, 100);
-    } catch (error) {
-      console.error("[INDEX] Error checking auth:", error);
-      router.replace("/login");
-      setIsReady(true);
-    }
+    setTimeout(() => {
+      if (uid) {
+        router.replace("/home");
+      } else {
+        router.replace("/login");
+      }
+    }, 100);
   }, []);
 
-  // Show loading screen while checking auth
   return (
     <View
       style={{
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
-        backgroundColor: "#fff",
+        backgroundColor: "#667eea",
       }}
     >
-      <ActivityIndicator size="large" color="#0000ff" />
+      <ActivityIndicator size="large" color="#fff" />
     </View>
   );
 }
